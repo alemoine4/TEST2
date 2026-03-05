@@ -1,0 +1,1391 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analyse Badminton V15.0</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="BAD1">
+    <style>
+        :root {
+            --bg-color: #0f1419;
+            --primary-surface-color: #1d2733;
+            --secondary-surface-color: #2f3336;
+            --primary-accent-color: #1d9bf0;
+            --text-primary-color: #e7e9ea;
+            --text-secondary-color: #8b98a5;
+            
+            --player1-color-light: #4a9eff;
+            --player1-color-dark: #1d3a5f;
+            --player2-color-light: #4eff9e;
+            --player2-color-dark: #2d5f1d;
+
+            --zone-fond: #ef4444;
+            --zone-gauche: #3b82f6;
+            --zone-droite: #10b981;
+            --zone-devant: #f59e0b;
+            --zone-autre: #8b5cf6;
+
+            --success-color: #10b981;
+            --error-color: #ef4444;
+            --warning-color: #f59e0b;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
+        html { overflow-x: hidden; width: 100%; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            margin: 0; padding: 0; background-color: var(--bg-color); color: var(--text-primary-color);
+            min-height: 100vh; display: flex; flex-direction: column; 
+            overflow-x: hidden; width: 100%; max-width: 100vw; position: relative;
+        }
+
+        .header {
+            background-color: var(--primary-surface-color); padding: 8px 16px; display: flex;
+            justify-content: center; align-items: center; border-bottom: 1px solid var(--secondary-surface-color);
+            position: sticky; top: 0; z-index: 100;
+        }
+        .header-title { display: none; }
+        .header-actions { display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap; }
+        
+        .icon-btn {
+            background: none; border: none; color: var(--text-secondary-color); font-size: 1.5em; cursor: pointer;
+            width: 36px; height: 36px; padding: 6px; border-radius: 50%;
+            transition: all 0.2s ease-in-out; position: relative; display: flex; align-items: center; justify-content: center;
+        }
+        .icon-btn:hover { background-color: rgba(29, 155, 240, 0.1); color: var(--primary-accent-color); }
+        .icon-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .icon-btn:disabled:hover { background: none; color: var(--text-secondary-color); }
+        .icon-btn svg { width: 22px; height: 22px; }
+        #icon-multiview, #icon-singleview { display: flex; align-items: center; justify-content: center; }
+        
+        .score-bar {
+            background-color: var(--primary-surface-color); padding: 10px 16px; display: flex;
+            justify-content: center; align-items: center; gap: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        .score-compact { display: flex; align-items: center; gap: 20px; font-size: 1.6em; font-weight: 800; }
+        .score-player { display: flex; flex-direction: column; align-items: center; }
+        .score-player-name { font-size: 0.4em; color: var(--text-secondary-color); font-weight: 500; margin-bottom: 2px; }
+        .score-player-value { color: var(--text-primary-color); text-shadow: 0 0 10px rgba(29, 155, 240, 0.3); }
+        .score-player-clicks { font-size: 0.3em; color: var(--text-secondary-color); font-weight: 400; margin-top: 4px; letter-spacing: 0.5px; background-color: var(--secondary-surface-color); padding: 1px 6px; border-radius: 6px; }
+        .score-separator { color: var(--text-secondary-color); font-size: 0.8em; padding-bottom: 12px; }
+        
+        body.solo-mode #scorePlayer2Container, body.solo-mode .score-separator { display: none; }
+        
+        .view-tabs { display: none; justify-content: center; padding: 8px 16px 0; gap: 8px; }
+        .tab-btn { padding: 6px 14px; border: none; background-color: transparent; color: var(--text-secondary-color); font-size: 0.9em; font-weight: 600; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s ease; }
+        .tab-btn.active { color: var(--text-primary-color); }
+        .tab-btn#tab-player1.active { border-color: var(--player1-color-light); }
+        .tab-btn#tab-player2.active { border-color: var(--player2-color-light); }
+
+        .game-container { flex: 1; display: flex; padding: 10px; gap: 14px; max-width: 1000px; margin: 0 auto; width: 100%; justify-content: center; align-items: flex-start; }
+        
+        body.single-view-mode .view-tabs { display: flex; }
+        body.single-view-mode .game-container { justify-content: center; }
+        body.single-view-mode .player-console { display: none; }
+        body.single-view-mode .player-console.active { display: flex; }
+        
+        body.solo-mode #tab-player2 { display: none; }
+        body.solo-mode #console-player2 { display: none !important; }
+        
+        .player-console { flex: 1; display: flex; flex-direction: column; gap: 10px; max-width: 480px; }
+
+        .console-header { text-align: center; padding: 8px; border-radius: 10px; font-weight: 700; font-size: 0.95em; border-bottom: 2px solid; }
+        .player1 .console-header { background-image: linear-gradient(to top, var(--player1-color-dark), #2c4a78); color: var(--player1-color-light); border-color: var(--player1-color-light); }
+        .player2 .console-header { background-image: linear-gradient(to top, var(--player2-color-dark), #3c6e2a); color: var(--player2-color-light); border-color: var(--player2-color-light); }
+        
+        .half-court {
+            display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr 1fr;
+            gap: 8px; width: 100%; max-width: 450px; height: 480px; margin: 0 auto;
+            padding: 12px; background: linear-gradient(to bottom, #2d5a3d 0%, #245032 50%, #1e3a28 100%);
+            border: 2px solid #1a2e1f; border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.6), inset 0 2px 10px rgba(0,0,0,0.3); position: relative;
+        }
+        
+        .half-court::before {
+            content: ''; position: absolute; inset: 0;
+            background-image: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.02) 2px, rgba(255,255,255,0.02) 4px);
+            border-radius: 10px; pointer-events: none;
+        }
+        
+        .court-lines-container { position: absolute; inset: 10px; z-index: 1; pointer-events: none; }
+        .court-line { position: absolute; background-color: rgba(255, 255, 255, 0.95); box-shadow: 0 0 2px rgba(0, 0, 0, 0.3); }
+        .court-line.side-l { top: 0; bottom: 0; left: 0; width: 3px; border-radius: 1px; }
+        .court-line.side-r { top: 0; bottom: 0; right: 0; width: 3px; border-radius: 1px; }
+        .court-line.single-l { top: 0; bottom: 0; left: 13%; width: 2px; }
+        .court-line.single-r { top: 0; bottom: 0; right: 13%; width: 2px; }
+        .court-line.center-line { top: 0; bottom: 0; left: 50%; transform: translateX(-50%); width: 2px; }
+        .court-line.service-line { left: 0; right: 0; top: 75%; height: 2px; }
+        .court-line.back-line { left: 0; right: 0; top: 0; height: 3px; border-radius: 1px; }
+        .court-line.fond-line { left: 0; right: 0; top: 15%; height: 2px; }
+        
+        .net-line {
+            position: absolute; bottom: -11px; left: -11px; right: -11px; height: 7px; 
+            background: linear-gradient(to top, #c0c0c0 0%, #ffffff 30%, #f5f5f5 70%, #d0d0d0 100%);
+            box-shadow: 0 -2px 8px rgba(255,255,255,0.7), inset 0 -1px 3px rgba(0,0,0,0.2), 0 1px 3px rgba(0,0,0,0.4); 
+            border-bottom-left-radius: 6px; border-bottom-right-radius: 6px; z-index: 20;
+            border-top: 1px solid rgba(255,255,255,0.8);
+        }
+
+        .shot-btn {
+            position: relative; z-index: 10; width: 100%; height: 100%;
+            border: 1px solid rgba(255,255,255,0.1); border-radius: 14px;
+            font-weight: 600; color: white; cursor: default;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4); transition: all 0.2s ease-in-out;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 10px; overflow: hidden;
+        }
+        .shot-btn:hover { transform: scale(1.02); }
+        .btn-header { text-align: center; margin-bottom: 10px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+        .btn-label { font-size: 0.6em; opacity: 0.8; text-transform: uppercase; letter-spacing: 0.5px; }
+        .btn-value { font-size: 0.8em; font-weight: 700; }
+        .btn-controls { display: flex; gap: 4px; align-items: center; }
+        .btn-action {
+            display: flex; align-items: center; justify-content: center; width: 30px; height: 30px;
+            cursor: pointer; transition: all 0.2s ease-in-out; border-radius: 50%;
+            background-color: rgba(0, 0, 0, 0.25); border: none; color: white;
+        }
+        .btn-action svg { width: 16px; height: 16px; }
+        .btn-action:hover { background-color: rgba(0, 0, 0, 0.4); transform: scale(1.1); }
+        .btn-action:active { background-color: rgba(0, 0, 0, 0.5); transform: scale(1); }
+        .btn-failure:hover { background-color: rgba(239, 68, 68, 0.3); }
+        .btn-failure:active { background-color: rgba(239, 68, 68, 0.5); }
+        
+        .shot-btn.fond    { grid-area: 1 / 2; background-image: linear-gradient(135deg, #dc2626, var(--zone-fond)); }
+        .shot-btn.gauche  { grid-area: 2 / 1; background-image: linear-gradient(135deg, #2563eb, var(--zone-gauche)); }
+        .shot-btn.droite  { grid-area: 2 / 3; background-image: linear-gradient(135deg, #059669, var(--zone-droite)); }
+        .shot-btn.devant  { grid-area: 3 / 2; background-image: linear-gradient(135deg, #ea580c, var(--zone-devant)); }
+        .shot-btn.autre   { grid-area: 2 / 2; background-image: linear-gradient(135deg, #7c3aed, var(--zone-autre)); }
+        .shot-btn.autre .btn-controls { justify-content: center; gap: 10px; }
+        .shot-btn.autre .btn-failure { display: none; }
+        
+        .action-buttons { display: flex; gap: 14px; padding: 10px; max-width: 600px; margin: 0 auto; width: 100%; }
+        .action-btn { flex: 1; padding: 10px; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.9em; color: white; display: flex; align-items: center; justify-content: center; gap: 6px; }
+        .action-btn svg { width: 18px; height: 18px; }
+        .action-btn:active { transform: scale(0.98); }
+        .btn-end-match { background-image: linear-gradient(to right, #059669, var(--success-color)); }
+        .btn-end-match:hover { background-image: linear-gradient(to right, #047857, #059669); }
+        .btn-reset { background-image: linear-gradient(to right, #dc2626, var(--error-color)); }
+        .btn-reset:hover { background-image: linear-gradient(to right, #b91c1c, #dc2626); }
+        
+        .modal { display: none; position: fixed; inset: 0; background-color: rgba(0, 0, 0, 0.85); z-index: 1000; padding: 20px; overflow-y: auto; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.3s ease; }
+        .modal.active { display: flex; opacity: 1; }
+        .modal-content { background-color: var(--primary-surface-color); border-radius: 16px; width: 100%; max-width: 550px; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5); transform: scale(0.95); transition: transform 0.3s ease; margin: 0 16px; }
+        .modal.active .modal-content { transform: scale(1); }
+        .modal-header { padding: 20px; border-bottom: 1px solid var(--secondary-surface-color); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background-color: var(--primary-surface-color); z-index: 1; }
+        .modal-title { font-size: 1.3em; font-weight: 700; }
+        .modal-close { background: none; border: none; color: var(--text-secondary-color); font-size: 1.8em; cursor: pointer; padding: 4px; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+        .modal-close:hover { background-color: rgba(239, 68, 68, 0.1); color: var(--error-color); }
+        .modal-body { padding: 24px; }
+        .modal-actions { padding: 16px 24px; border-top: 1px solid var(--secondary-surface-color); display: flex; gap: 12px; background-color: var(--primary-surface-color); position: sticky; bottom: 0; }
+        .modal-btn { flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .modal-btn-primary { background-color: var(--primary-accent-color); color: white; }
+        .modal-btn-primary:hover { background-color: #1a8cd8; }
+        .modal-btn-secondary { background-color: var(--secondary-surface-color); color: var(--text-primary-color); }
+        .modal-btn-secondary:hover { background-color: #3a3f42; }
+        .modal-btn-warning { background-color: var(--warning-color); color: white; }
+        .modal-btn-warning:hover { background-color: #d97706; }
+        .modal-btn-success { background-color: var(--success-color); color: white; }
+        .modal-btn-success:hover { background-color: #059669; }
+        .modal-btn-compact { padding: 8px 12px; font-size: 0.8em; flex: none; }
+
+        .zone-cell { display: flex; align-items: center; gap: 8px; }
+        .color-indicator { width: 16px; height: 16px; border-radius: 3px; display: inline-block; }
+        
+        .detailed-scores { max-height: 500px; overflow-y: auto; }
+        .score-table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+        .score-table th, .score-table td { padding: 14px 10px; text-align: center; }
+        .score-table th { background-color: var(--secondary-surface-color); color: var(--text-secondary-color); font-weight: 600; font-size: 0.85em; position: sticky; top: 0; z-index: 10; }
+        .score-table td { border-top: 1px solid var(--secondary-surface-color); }
+        .stat-split { display: flex; flex-direction: column; gap: 4px; }
+        .stat-points { font-weight: 700; font-size: 1.2em; }
+        .stat-clicks, .stat-failures { font-size: 0.85em; color: var(--text-secondary-color); }
+        .stat-failures { color: var(--error-color); }
+        tr.total-row td { background-color: var(--secondary-surface-color); font-weight: bold; }
+        
+        .settings-section { margin-bottom: 24px; }
+        .settings-label { display: block; font-size: 0.9em; color: var(--text-secondary-color); margin-bottom: 8px; }
+        .settings-input, .settings-select { width: 100%; padding: 12px; border: 1px solid var(--secondary-surface-color); border-radius: 8px; background-color: var(--bg-color); color: var(--text-primary-color); font-size: 1em; }
+        .settings-input:focus, .settings-select:focus { outline: none; border-color: var(--primary-accent-color); }
+        .settings-select { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%238b98a5' viewBox='0 0 20 20'%3E%3Cpath d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; background-size: 16px; padding-right: 40px; }
+        .settings-toggle { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; }
+        .toggle-switch { position: relative; display: inline-block; width: 50px; height: 28px; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--secondary-surface-color); transition: .3s; border-radius: 28px; }
+        .toggle-slider:before { position: absolute; content: ""; height: 22px; width: 22px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; }
+        .toggle-switch input:checked + .toggle-slider { background-color: var(--primary-accent-color); }
+        .toggle-switch input:checked + .toggle-slider:before { transform: translateX(22px); }
+        
+        .archive-list { display: flex; flex-direction: column; gap: 12px; max-height: 400px; overflow-y: auto; }
+        .archive-item { background-color: var(--bg-color); border-radius: 10px; padding: 14px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .archive-checkbox { width: 20px; height: 20px; cursor: pointer; }
+        .archive-info { flex: 1; }
+        .archive-date { font-size: 0.85em; color: var(--text-secondary-color); margin-bottom: 4px; }
+        .archive-score { font-weight: 600; font-size: 1.1em; }
+        .archive-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+        .archive-bulk-actions { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+        .archive-select-all { display: flex; align-items: center; gap: 6px; font-size: 0.85em; color: var(--text-secondary-color); cursor: pointer; }
+        .archive-select-all input { cursor: pointer; }
+        .archive-btn { padding: 6px 10px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85em; transition: all 0.2s; }
+        .archive-btn-view { background-color: var(--primary-accent-color); color: white; }
+        .archive-btn-download { background-color: var(--success-color); color: white; }
+        .archive-btn-share { background-color: var(--warning-color); color: white; }
+        .archive-btn-delete { background-color: var(--error-color); color: white; }
+        
+        .match-summary { text-align: center; }
+        .summary-winner { font-size: 1.5em; font-weight: 700; margin-bottom: 16px; color: var(--success-color); }
+        .summary-scores { display: flex; justify-content: center; gap: 40px; margin-bottom: 24px; }
+        .summary-player { text-align: center; }
+        .summary-player-name { font-size: 0.9em; color: var(--text-secondary-color); margin-bottom: 4px; }
+        .summary-player-score { font-size: 2.5em; font-weight: 800; }
+        
+        .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background-color: var(--primary-surface-color); color: var(--text-primary-color); padding: 12px 24px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.4); z-index: 2000; opacity: 0; transition: opacity 0.3s, transform 0.3s; pointer-events: none; }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(-10px); }
+        .toast.success { border-left: 4px solid var(--success-color); }
+        .toast.error { border-left: 4px solid var(--error-color); }
+        
+        .analysis-modal { max-width: 600px; }
+        .analysis-tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .analysis-tab { flex: 1; padding: 10px; border: none; border-radius: 8px; background-color: var(--secondary-surface-color); color: var(--text-secondary-color); font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .analysis-tab.active { background-color: var(--primary-accent-color); color: white; }
+        .analysis-section-title { font-weight: 700; font-size: 1em; margin-bottom: 12px; margin-top: 20px; color: var(--text-primary-color); }
+        .analysis-section-title:first-child { margin-top: 0; }
+        .analysis-table { width: 100%; border-collapse: collapse; font-size: 0.9em; table-layout: fixed; }
+        .analysis-table td { padding: 10px 8px; border-bottom: 1px solid var(--secondary-surface-color); vertical-align: middle; }
+        .analysis-table td:first-child { width: 80px; }
+        .analysis-table td:last-child { width: 110px; }
+        .analysis-table td:nth-child(2) { width: auto; }
+        .analysis-dot { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 8px; vertical-align: middle; }
+        .analysis-dot.fond { background-color: var(--zone-fond); }
+        .analysis-dot.gauche { background-color: var(--zone-gauche); }
+        .analysis-dot.droite { background-color: var(--zone-droite); }
+        .analysis-dot.devant { background-color: var(--zone-devant); }
+        .analysis-dot.autre { background-color: var(--zone-autre); }
+        .analysis-progress { width: 100%; height: 8px; background-color: var(--secondary-surface-color); border-radius: 4px; overflow: hidden; }
+        .analysis-bar { height: 100%; border-radius: 4px; transition: width 0.3s ease; }
+        .analysis-bar.fond { background-color: var(--zone-fond); }
+        .analysis-bar.gauche { background-color: var(--zone-gauche); }
+        .analysis-bar.droite { background-color: var(--zone-droite); }
+        .analysis-bar.devant { background-color: var(--zone-devant); }
+        .analysis-bar.autre { background-color: var(--zone-autre); }
+        .analysis-bar.zero-with-data { min-width: 8px; border-radius: 50%; }
+        .analysis-globals { display: flex; gap: 12px; margin-top: 16px; }
+        .analysis-global-card { flex: 1; background-color: var(--bg-color); padding: 16px; border-radius: 10px; text-align: center; }
+        .analysis-global-value { font-size: 1.8em; font-weight: 800; color: var(--primary-accent-color); }
+        .analysis-global-label { color: var(--text-primary-color); opacity: 0.8; font-size: 0.9em; margin-top: 6px; }
+        .analysis-row-disabled td, .analysis-row-disabled .analysis-dot { opacity: 0.45; color: var(--text-secondary-color) !important; }
+        .analysis-row-disabled .analysis-bar { background: var(--secondary-surface-color) !important; }
+
+        /* Styles pour la gestion des élèves */
+        .student-list { display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto; margin-bottom: 16px; }
+        .student-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; background-color: var(--bg-color); border-radius: 8px; }
+        .student-info { flex: 1; }
+        .student-name { font-weight: 600; }
+        .student-class { font-size: 0.85em; color: var(--text-secondary-color); }
+        .student-actions { display: flex; gap: 6px; }
+        .student-btn { padding: 6px 10px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.8em; transition: all 0.2s; }
+        .student-btn-edit { background-color: var(--primary-accent-color); color: white; }
+        .student-btn-delete { background-color: var(--error-color); color: white; }
+        .add-student-form { display: flex; flex-direction: column; gap: 12px; padding: 16px; background-color: var(--bg-color); border-radius: 10px; margin-bottom: 16px; }
+        .add-student-row { display: flex; gap: 10px; }
+        .add-student-row .settings-input { flex: 1; }
+        .import-export-section { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--secondary-surface-color); }
+        .import-export-section .modal-btn { flex: 1; min-width: 120px; }
+        .file-input-hidden { display: none; }
+        .empty-list { text-align: center; padding: 24px; color: var(--text-secondary-color); }
+        .student-count { font-size: 0.85em; color: var(--text-secondary-color); margin-bottom: 12px; }
+
+        @media (max-width: 1000px) { 
+            .game-container { flex-direction: column; align-items: center; padding: 8px; gap: 12px; }
+            body.multi-view-mode .game-container { flex-direction: column; }
+            body.multi-view-mode .player-console { display: flex; max-width: 100%; }
+        }
+        @media (max-width: 768px) { 
+            .game-container { flex-direction: column; padding: 8px; gap: 12px; } 
+            body.multi-view-mode .game-container { flex-direction: column; }
+            body.multi-view-mode .player-console { display: flex; max-width: 100%; }
+            .player-console { flex: 1 1 auto; max-width: 100%; gap: 8px; }
+            .half-court { max-width: 380px; height: 420px; }
+        }
+        @media (max-width: 400px) {
+            .half-court { max-width: 320px; height: 360px; gap: 6px; padding: 8px; }
+            .court-lines-container { inset: 8px; }
+            .score-compact { font-size: 1.4em; gap: 14px; }
+            .header { padding: 6px 10px; }
+            .header-actions { gap: 4px; }
+            .icon-btn { width: 32px; height: 32px; }
+            .icon-btn svg { width: 18px; height: 18px; }
+            .btn-action { width: 26px; height: 26px; }
+            .btn-action svg { width: 14px; height: 14px; }
+            .btn-controls { gap: 3px; }
+            .btn-label { font-size: 0.5em; }
+            .btn-value { font-size: 0.6em; }
+            .action-buttons { padding: 8px; gap: 10px; }
+            .action-btn { padding: 8px; font-size: 0.8em; }
+            .action-btn svg { width: 16px; height: 16px; }
+            .game-container { padding: 6px; gap: 10px; }
+            .shot-btn { padding: 2px; border-radius: 12px; }
+            .console-header { padding: 6px; font-size: 0.85em; }
+            .player-console { gap: 6px; }
+            .view-tabs { padding: 6px 12px 0; }
+            .tab-btn { padding: 4px 10px; font-size: 0.85em; }
+        }
+        @media (orientation: landscape) and (max-height: 500px) {
+            .half-court { max-width: 320px; height: 360px; }
+            .score-bar { padding: 6px 16px; }
+            .header { padding: 4px 12px; }
+            .action-buttons { padding: 6px; }
+        }
+        @media (max-width: 360px) {
+            .header-actions { gap: 2px; }
+            .icon-btn { width: 28px; height: 28px; padding: 4px; }
+            .icon-btn svg { width: 16px; height: 16px; }
+            .header-title { font-size: 0.95em; }
+            .score-compact { font-size: 1.2em; gap: 10px; }
+        }
+    </style>
+</head>
+<body class="multi-view-mode">
+    <div class="header">
+        <h1 class="header-title">BAD1</h1>
+        <div class="header-actions">
+            <button class="icon-btn" id="undoBtn" onclick="undoLastAction()" title="Annuler (Ctrl+Z)" disabled>
+                <svg fill="currentColor" viewBox="0 0 24 24"><path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/></svg>
+            </button>
+            <button class="icon-btn" id="gameModeBtn" onclick="toggleGameMode()" title="Mode Solo/Duo">
+                <svg id="iconDuo" fill="currentColor" viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+                <svg id="iconSolo" fill="currentColor" viewBox="0 0 24 24" style="display:none;"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+            </button>
+            <button class="icon-btn" id="view-toggle-btn" onclick="toggleViewMode()" title="Changer de vue">
+                <span id="icon-multiview" style="display: flex;"><svg fill="currentColor" viewBox="0 0 24 24"><path d="M3 5v14h18V5H3z M9 17H5v-4h4V17z M17 17h-6v-4h6V17z M17 11H5V7h12V11z"></path></svg></span>
+                <span id="icon-singleview" style="display: none;"><svg fill="currentColor" viewBox="0 0 24 24"><path d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14z"></path></svg></span>
+            </button>
+            <button class="icon-btn" onclick="openDetailedScore()" title="Détails du score">
+                <svg fill="currentColor" viewBox="0 0 20 20"><path d="M2 11h6v6H2v-6zM2 3h6v6H2V3zm8 8h6v6h-6v-6zm8-8v6h-6V3h6z"></path></svg>
+            </button>
+            <button class="icon-btn" onclick="openAnalysisModal()" title="Analyse du match">
+                <svg fill="currentColor" viewBox="0 0 24 24"><path d="M3 17h2v-7H3v7zm4 0h2v-4H7v4zm4 0h2v-10h-2v10zm4 0h2v-2h-2v2zm4-14v18H1V3h18zm2-2H-1v22h22V1z"></path></svg>
+            </button>
+            <button class="icon-btn" onclick="openStudentsModal()" title="Gérer les élèves">
+                <svg fill="currentColor" viewBox="0 0 24 24"><path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z"/></svg>
+            </button>
+            <button class="icon-btn" onclick="openArchives()" title="Archives">
+                <svg fill="currentColor" viewBox="0 0 20 20"><path d="M2 4a2 2 0 012-2h4l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V4zm2 1v9h12V5H8.586L6.586 3H4z"></path></svg>
+            </button>
+            <button class="icon-btn" onclick="downloadCurrentStateAsCsv()" title="Exporter CSV">
+                <svg fill="currentColor" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"></path></svg>
+            </button>
+            <button class="icon-btn" onclick="openSettings()" title="Paramètres">
+                <svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0L8 5.25a2 2 0 01-2.24 2.24L3.51 8c-1.56.38-1.56 2.6 0 2.98l2.24.51a2 2 0 012.24 2.24l.51 2.24c.38 1.56 2.6 1.56 2.98 0l.51-2.24a2 2 0 012.24-2.24l2.24-.51c1.56-.38 1.56-2.6 0-2.98l-2.24-.51a2 2 0 01-2.24-2.24L11.49 3.17zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"></path></svg>
+            </button>
+        </div>
+    </div>
+    
+    <div class="score-bar">
+        <div class="score-compact">
+            <div class="score-player" id="scorePlayer1Container">
+                <div class="score-player-name" id="scorePlayer1Name">Joueur 1</div>
+                <div class="score-player-value" id="scorePlayer1Value">0</div>
+                <div class="score-player-clicks" id="scorePlayer1Clicks">(0 actions)</div>
+            </div>
+            <div class="score-separator">-</div>
+            <div class="score-player" id="scorePlayer2Container">
+                <div class="score-player-name" id="scorePlayer2Name">Joueur 2</div>
+                <div class="score-player-value" id="scorePlayer2Value">0</div>
+                <div class="score-player-clicks" id="scorePlayer2Clicks">(0 actions)</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="view-tabs">
+        <button id="tab-player1" class="tab-btn" onclick="switchTab('player1')">Joueur 1</button>
+        <button id="tab-player2" class="tab-btn active" onclick="switchTab('player2')">Joueur 2</button>
+    </div>
+
+    <div class="game-container">
+        <div class="player-console player1" id="console-player1">
+            <div class="console-header" id="player1Header">Joueur 1</div>
+            <div class="half-court">
+                <div class="court-lines-container">
+                    <div class="court-line side-l"></div><div class="court-line side-r"></div>
+                    <div class="court-line single-l"></div><div class="court-line single-r"></div>
+                    <div class="court-line center-line"></div><div class="court-line service-line"></div>
+                    <div class="court-line back-line"></div><div class="net-line"></div>
+                    <div class="court-line fond-line"></div>
+                </div>
+                <div class="shot-btn fond"><div class="btn-header"><div class="btn-label">FOND</div><div class="btn-value" id="player1-fond-value">1 pt</div></div><div class="btn-controls"><button class="btn-action btn-decrement" onclick="removePoints('fond', 'player1')"><svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clip-rule="evenodd"></path></svg></button><button class="btn-action btn-increment" onclick="addPoints('fond', 'player1')"><svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"></path></svg></button><button class="btn-action btn-failure" onclick="addFailure('fond', 'player1')" title="Échec"><svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg></button></div></div>
+                <div class="shot-btn gauche"><div class="btn-header"><div class="btn-label">GAUCHE</div><div class="btn-value" id="player1-gauche-value">1 pt</div></div><div class="btn-controls"><button class="btn-action btn-decrement" onclick="removePoints('gauche', 'player1')"><svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clip-rule="evenodd"></path></svg></button><button class="btn-action btn-increment" onclick="addPoints('gauche', 'player1')"><svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"></path></svg></button><button class="btn-action btn-failure" onclick="addFailure('gauche', 'player1')" title="Échec"><svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg></button></div></div>
+                <div class="shot-btn droite"><div class="btn-header"><div class="btn-label">DROITE</div><div class="btn-value" id="player1-droite-value">1 pt</div></div><div class="btn-controls"><button class="btn-action btn-decrement" onclick="removePoints('droite', 'player1')"><svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clip-rule="evenodd"></path></svg></button><button class="btn-action btn-increment" onclick="addPoints('droite', 'player1')"><svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"></path></svg></button><button class="btn-action btn-failure" onclick="addFailure('droite', 'player1')" title="Échec"><svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg></button></div></div>
+                <div class="shot-btn devant"><div class="btn-header"><div class="btn-label">DEVANT</div><div class="btn-value" id="player1-devant-value">1 pt</div></div><div class="btn-controls"><button class="btn-action btn-decrement" onclick="removePoints('devant', 'player1')"><svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clip-rule="evenodd"></path></svg></button><button class="btn-action btn-increment" onclick="addPoints('devant', 'player1')"><svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"></path></svg></button><button class="btn-action btn-failure" onclick="addFailure('devant', 'player1')" title="Échec"><svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg></button></div></div>
+                <div class="shot-btn autre"><div class="btn-header"><div class="btn-label">AUTRE</div><div class="btn-value" id="player1-autre-value">1 pt</div></div><div class="btn-controls"><button class="btn-action btn-decrement" onclick="removePoints('autre', 'player1')"><svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clip-rule="evenodd"></path></svg></button><button class="btn-action btn-increment" onclick="addPoints('autre', 'player1')"><svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"></path></svg></button><button class="btn-action btn-failure" style="visibility:hidden;"><svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg></button></div></div>
+            </div>
+        </div>
+        <div class="player-console player2 active" id="console-player2">
+            <div class="console-header" id="player2Header">Joueur 2</div>
+            <div class="half-court">
+                <div class="court-lines-container">
+                    <div class="court-line side-l"></div><div class="court-line side-r"></div>
+                    <div class="court-line single-l"></div><div class="court-line single-r"></div>
+                    <div class="court-line center-line"></div><div class="court-line service-line"></div>
+                    <div class="court-line back-line"></div><div class="net-line"></div>
+                    <div class="court-line fond-line"></div>
+                </div>
+                <div class="shot-btn fond"><div class="btn-header"><div class="btn-label">FOND</div><div class="btn-value" id="player2-fond-value">1 pt</div></div><div class="btn-controls"><button class="btn-action btn-decrement" onclick="removePoints('fond', 'player2')"><svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clip-rule="evenodd"></path></svg></button><button class="btn-action btn-increment" onclick="addPoints('fond', 'player2')"><svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"></path></svg></button><button class="btn-action btn-failure" onclick="addFailure('fond', 'player2')" title="Échec"><svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg></button></div></div>
+                <div class="shot-btn gauche"><div class="btn-header"><div class="btn-label">GAUCHE</div><div class="btn-value" id="player2-gauche-value">1 pt</div></div><div class="btn-controls"><button class="btn-action btn-decrement" onclick="removePoints('gauche', 'player2')"><svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clip-rule="evenodd"></path></svg></button><button class="btn-action btn-increment" onclick="addPoints('gauche', 'player2')"><svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"></path></svg></button><button class="btn-action btn-failure" onclick="addFailure('gauche', 'player2')" title="Échec"><svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg></button></div></div>
+                <div class="shot-btn droite"><div class="btn-header"><div class="btn-label">DROITE</div><div class="btn-value" id="player2-droite-value">1 pt</div></div><div class="btn-controls"><button class="btn-action btn-decrement" onclick="removePoints('droite', 'player2')"><svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clip-rule="evenodd"></path></svg></button><button class="btn-action btn-increment" onclick="addPoints('droite', 'player2')"><svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"></path></svg></button><button class="btn-action btn-failure" onclick="addFailure('droite', 'player2')" title="Échec"><svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg></button></div></div>
+                <div class="shot-btn devant"><div class="btn-header"><div class="btn-label">DEVANT</div><div class="btn-value" id="player2-devant-value">1 pt</div></div><div class="btn-controls"><button class="btn-action btn-decrement" onclick="removePoints('devant', 'player2')"><svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clip-rule="evenodd"></path></svg></button><button class="btn-action btn-increment" onclick="addPoints('devant', 'player2')"><svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"></path></svg></button><button class="btn-action btn-failure" onclick="addFailure('devant', 'player2')" title="Échec"><svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg></button></div></div>
+                <div class="shot-btn autre"><div class="btn-header"><div class="btn-label">AUTRE</div><div class="btn-value" id="player2-autre-value">1 pt</div></div><div class="btn-controls"><button class="btn-action btn-decrement" onclick="removePoints('autre', 'player2')"><svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clip-rule="evenodd"></path></svg></button><button class="btn-action btn-increment" onclick="addPoints('autre', 'player2')"><svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"></path></svg></button><button class="btn-action btn-failure" style="visibility:hidden;"><svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg></button></div></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="action-buttons">
+        <button class="action-btn btn-end-match" onclick="endMatch()"><svg fill="currentColor" viewBox="0 0 20 20"><path d="M3 3a1 1 0 000 2v11a1 1 0 100 2h14a1 1 0 100-2V5a1 1 0 100-2H3zm3 8.707L9.293 8 6 4.707V11.707z"></path></svg><span>Terminer</span></button>
+        <button class="action-btn btn-reset" onclick="resetScores()"><svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 110 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h4a1 1 0 011 1v4a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"></path></svg><span>Reset</span></button>
+    </div>
+
+    <div class="toast" id="toast"></div>
+    
+    <!-- Modal Détails -->
+    <div class="modal" id="detailModal">
+        <div class="modal-content">
+            <div class="modal-header"><h2 class="modal-title">Détails du score</h2><button class="modal-close" onclick="closeModal('detailModal')">×</button></div>
+            <div class="modal-body">
+                <div class="detailed-scores">
+                    <table class="score-table">
+                        <thead><tr><th>Zone</th><th id="detail-player1-header">Joueur 1</th><th id="detail-player2-header">Joueur 2</th></tr></thead>
+                        <tbody>
+                            <tr><td><div class="zone-cell"><span class="color-indicator" style="background-color: var(--zone-fond);"></span> Fond</div></td><td><div class="stat-split"><span class="stat-points" id="detail-player1-fond-points">0</span><span class="stat-clicks" id="detail-player1-fond-clicks">(0 actions)</span></div></td><td><div class="stat-split"><span class="stat-points" id="detail-player2-fond-points">0</span><span class="stat-clicks" id="detail-player2-fond-clicks">(0 actions)</span></div></td></tr>
+                            <tr><td><div class="zone-cell"><span class="color-indicator" style="background-color: var(--zone-gauche);"></span> Gauche</div></td><td><div class="stat-split"><span class="stat-points" id="detail-player1-gauche-points">0</span><span class="stat-clicks" id="detail-player1-gauche-clicks">(0 actions)</span></div></td><td><div class="stat-split"><span class="stat-points" id="detail-player2-gauche-points">0</span><span class="stat-clicks" id="detail-player2-gauche-clicks">(0 actions)</span></div></td></tr>
+                            <tr><td><div class="zone-cell"><span class="color-indicator" style="background-color: var(--zone-droite);"></span> Droite</div></td><td><div class="stat-split"><span class="stat-points" id="detail-player1-droite-points">0</span><span class="stat-clicks" id="detail-player1-droite-clicks">(0 actions)</span></div></td><td><div class="stat-split"><span class="stat-points" id="detail-player2-droite-points">0</span><span class="stat-clicks" id="detail-player2-droite-clicks">(0 actions)</span></div></td></tr>
+                            <tr><td><div class="zone-cell"><span class="color-indicator" style="background-color: var(--zone-devant);"></span> Devant</div></td><td><div class="stat-split"><span class="stat-points" id="detail-player1-devant-points">0</span><span class="stat-clicks" id="detail-player1-devant-clicks">(0 actions)</span></div></td><td><div class="stat-split"><span class="stat-points" id="detail-player2-devant-points">0</span><span class="stat-clicks" id="detail-player2-devant-clicks">(0 actions)</span></div></td></tr>
+                            <tr><td><div class="zone-cell"><span class="color-indicator" style="background-color: var(--zone-autre);"></span> Autre</div></td><td><div class="stat-split"><span class="stat-points" id="detail-player1-autre-points">0</span><span class="stat-clicks" id="detail-player1-autre-clicks">(0 actions)</span></div></td><td><div class="stat-split"><span class="stat-points" id="detail-player2-autre-points">0</span><span class="stat-clicks" id="detail-player2-autre-clicks">(0 actions)</span></div></td></tr>
+                            <tr class="total-row"><td>Total</td><td><span id="detail-player1-total">0</span></td><td><span id="detail-player2-total">0</span></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal Paramètres -->
+    <div class="modal" id="settingsModal">
+        <div class="modal-content">
+            <div class="modal-header"><h2 class="modal-title">Paramètres</h2><button class="modal-close" onclick="closeModal('settingsModal')">×</button></div>
+            <div class="modal-body">
+                <div class="settings-section">
+                    <label class="settings-label">Mode de jeu</label>
+                    <div class="settings-toggle"><span>Mode Solo (1 joueur)</span><label class="toggle-switch"><input type="checkbox" id="soloModeToggle" onchange="toggleGameModeFromSettings()"><span class="toggle-slider"></span></label></div>
+                </div>
+                <div class="settings-section">
+                    <label class="settings-label">Joueur 1</label>
+                    <select class="settings-select" id="player1Select" onchange="onPlayerSelectChange('player1')"><option value="">-- Saisie manuelle --</option></select>
+                    <input type="text" class="settings-input" id="player1NameInput" placeholder="Nom du joueur 1" style="margin-top: 8px;">
+                </div>
+                <div class="settings-section" id="player2NameSection">
+                    <label class="settings-label">Joueur 2</label>
+                    <select class="settings-select" id="player2Select" onchange="onPlayerSelectChange('player2')"><option value="">-- Saisie manuelle --</option></select>
+                    <input type="text" class="settings-input" id="player2NameInput" placeholder="Nom du joueur 2" style="margin-top: 8px;">
+                </div>
+                <div class="settings-section">
+                    <label class="settings-label">Valeurs des points par zone</label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div><label style="font-size:0.8em;color:var(--text-secondary-color);">Fond</label><input type="number" class="settings-input" id="pointValueFond" min="1" max="10" value="1"></div>
+                        <div><label style="font-size:0.8em;color:var(--text-secondary-color);">Gauche</label><input type="number" class="settings-input" id="pointValueGauche" min="1" max="10" value="1"></div>
+                        <div><label style="font-size:0.8em;color:var(--text-secondary-color);">Droite</label><input type="number" class="settings-input" id="pointValueDroite" min="1" max="10" value="1"></div>
+                        <div><label style="font-size:0.8em;color:var(--text-secondary-color);">Devant</label><input type="number" class="settings-input" id="pointValueDevant" min="1" max="10" value="1"></div>
+                        <div><label style="font-size:0.8em;color:var(--text-secondary-color);">Autre</label><input type="number" class="settings-input" id="pointValueAutre" min="1" max="10" value="1"></div>
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <label class="settings-label">Données</label>
+                    <button class="modal-btn" style="background-color: var(--error-color); color: white; width: 100%;" onclick="purgeAllData()">Effacer toutes les données</button>
+                    <p style="font-size: 0.8em; color: var(--text-secondary-color); margin-top: 8px;">Supprime les scores, archives, élèves et paramètres sauvegardés.</p>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-primary" onclick="saveSettings()">Enregistrer</button>
+                <button class="modal-btn modal-btn-secondary" onclick="closeModal('settingsModal')">Annuler</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal Gestion des Élèves -->
+    <div class="modal" id="studentsModal">
+        <div class="modal-content">
+            <div class="modal-header"><h2 class="modal-title">Gestion des Élèves</h2><button class="modal-close" onclick="closeModal('studentsModal')">×</button></div>
+            <div class="modal-body">
+                <div class="add-student-form" id="addStudentForm">
+                    <div style="font-weight: 600; margin-bottom: 8px;" id="formTitle">Ajouter un élève</div>
+                    <div class="add-student-row">
+                        <input type="text" class="settings-input" id="studentNameInput" placeholder="Nom de l'élève">
+                        <input type="text" class="settings-input" id="studentClassInput" placeholder="Classe (optionnel)">
+                    </div>
+                    <input type="hidden" id="editingStudentId" value="">
+                    <div style="display: flex; gap: 8px;">
+                        <button class="modal-btn modal-btn-primary" onclick="saveStudent()" style="flex:1;"><span id="saveStudentBtnText">Ajouter</span></button>
+                        <button class="modal-btn modal-btn-secondary" onclick="cancelEditStudent()" style="flex:1; display:none;" id="cancelEditBtn">Annuler</button>
+                    </div>
+                </div>
+                <div class="student-count" id="studentCount">0 élève(s) enregistré(s)</div>
+                <div class="student-list" id="studentList"><div class="empty-list">Aucun élève enregistré</div></div>
+                <div class="import-export-section">
+                    <button class="modal-btn modal-btn-secondary" onclick="downloadStudentTemplate()">📄 Modèle CSV</button>
+                    <button class="modal-btn modal-btn-warning" onclick="document.getElementById('importStudentsFile').click()">📥 Importer CSV</button>
+                    <button class="modal-btn modal-btn-primary" onclick="exportStudentsCsv()">📤 Exporter CSV</button>
+                    <input type="file" id="importStudentsFile" class="file-input-hidden" accept=".csv" onchange="importStudentsCsv(event)">
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-secondary" onclick="deleteAllStudents()">Supprimer tous</button>
+                <button class="modal-btn modal-btn-primary" onclick="closeModal('studentsModal')">Fermer</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal Archives -->
+    <div class="modal" id="archivesModal">
+        <div class="modal-content">
+            <div class="modal-header"><h2 class="modal-title">Archives des matchs</h2><button class="modal-close" onclick="closeModal('archivesModal')">×</button></div>
+            <div class="modal-body">
+                <div class="archive-bulk-actions">
+                    <label class="archive-select-all">
+                        <input type="checkbox" id="selectAllArchives" onchange="toggleSelectAll()">
+                        <span>Tout sélectionner</span>
+                    </label>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="modal-btn modal-btn-success modal-btn-compact" onclick="downloadSelectedArchives()">📥 Télécharger</button>
+                        <button class="modal-btn modal-btn-warning modal-btn-compact" onclick="shareSelectedArchives()">📤 Partager</button>
+                    </div>
+                </div>
+                <div class="archive-list" id="archiveList"></div>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-secondary" onclick="deleteAllArchives()">Supprimer tout</button>
+                <button class="modal-btn modal-btn-primary" onclick="closeModal('archivesModal')">Fermer</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal Visualisation Archive -->
+    <div class="modal" id="archiveViewModal">
+        <div class="modal-content analysis-modal">
+            <div class="modal-header"><h2 class="modal-title">Analyse du Match</h2><button class="modal-close" onclick="closeModal('archiveViewModal')">×</button></div>
+            <div class="modal-body">
+                <div id="archiveViewDate" style="text-align:center;color:var(--text-secondary-color);margin-bottom:16px;"></div>
+                <div class="analysis-tabs" id="archiveViewTabs">
+                    <button class="analysis-tab active" id="archiveTabPlayer1" onclick="switchArchiveTab('player1')">Joueur 1</button>
+                    <button class="analysis-tab" id="archiveTabPlayer2" onclick="switchArchiveTab('player2')">Joueur 2</button>
+                </div>
+                <div id="archiveViewContent"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal Fin de Match -->
+    <div class="modal" id="endMatchModal">
+        <div class="modal-content">
+            <div class="modal-header"><h2 class="modal-title">Match terminé</h2><button class="modal-close" onclick="closeModal('endMatchModal')">×</button></div>
+            <div class="modal-body"><div id="matchSummary" class="match-summary"></div></div>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-primary" onclick="archiveMatch()">Archiver</button>
+                <button class="modal-btn modal-btn-secondary" onclick="downloadMatchCSV()">Télécharger CSV</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal Analyse -->
+    <div class="modal" id="analysisModal">
+        <div class="modal-content analysis-modal">
+            <div class="modal-header"><h2 class="modal-title">Analyse du Match</h2><button class="modal-close" onclick="closeModal('analysisModal')">×</button></div>
+            <div class="modal-body">
+                <div class="analysis-tabs">
+                    <button class="analysis-tab active" id="analysisTabPlayer1" onclick="switchAnalysisTab('player1')">Joueur 1</button>
+                    <button class="analysis-tab" id="analysisTabPlayer2" onclick="switchAnalysisTab('player2')">Joueur 2</button>
+                </div>
+                <div id="analysisContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        window.addEventListener('error', function(e) { console.error('Erreur globale:', e.message); return true; });
+        
+        let localStorageAvailable = false;
+        let appState = {
+            players: {
+                player1: { name: 'Joueur 1', scores: { fond: 0, gauche: 0, droite: 0, devant: 0, autre: 0 }, clicks: { fond: 0, gauche: 0, droite: 0, devant: 0, autre: 0 }, failures: { fond: 0, gauche: 0, droite: 0, devant: 0, autre: 0 }, pointValues: { fond: 1, gauche: 1, droite: 1, devant: 1, autre: 1 } },
+                player2: { name: 'Joueur 2', scores: { fond: 0, gauche: 0, droite: 0, devant: 0, autre: 0 }, clicks: { fond: 0, gauche: 0, droite: 0, devant: 0, autre: 0 }, failures: { fond: 0, gauche: 0, droite: 0, devant: 0, autre: 0 }, pointValues: { fond: 1, gauche: 1, droite: 1, devant: 1, autre: 1 } }
+            },
+            archives: [], students: [], currentView: 'multi', activeSinglePlayer: 'player1', gameMode: 'duo'
+        };
+        
+        let actionHistory = [];
+        const MAX_HISTORY = 30;
+        
+        function pushAction(action) { actionHistory.push(action); if (actionHistory.length > MAX_HISTORY) actionHistory.shift(); updateUndoButton(); }
+        function undoLastAction() {
+            if (actionHistory.length === 0) return;
+            const last = actionHistory.pop();
+            const player = appState.players[last.player];
+            switch(last.type) {
+                case 'point': player.scores[last.zone] -= last.value; player.clicks[last.zone] -= 1; break;
+                case 'removePoint': player.scores[last.zone] += last.value; player.clicks[last.zone] += 1; break;
+                case 'failure': player.failures[last.zone] -= 1; break;
+            }
+            vibrate(50); updateUI(); saveState(); updateUndoButton(); showToast('↩ Action annulée', 'success');
+        }
+        function updateUndoButton() { const btn = document.getElementById('undoBtn'); if (btn) btn.disabled = actionHistory.length === 0; }
+        document.addEventListener('keydown', function(e) { if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); undoLastAction(); } });
+        function vibrate(duration = 30) { if ('vibrate' in navigator) navigator.vibrate(duration); }
+        function escapeHtml(text) { const div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
+        function formatDateYYYYMMDD(date) { const d = new Date(date); return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`; }
+        function formatHour(date) { const d = new Date(date); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; }
+
+        // GESTION DES ÉLÈVES
+        function generateStudentId() { return 'student_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9); }
+        function openStudentsModal() { renderStudentList(); updateStudentSelects(); document.getElementById('studentsModal').classList.add('active'); }
+        function renderStudentList() {
+            const listEl = document.getElementById('studentList');
+            const countEl = document.getElementById('studentCount');
+            if (!appState.students || appState.students.length === 0) {
+                listEl.innerHTML = '<div class="empty-list">Aucun élève enregistré.<br>Ajoutez des élèves ou importez un fichier CSV.</div>';
+                countEl.textContent = '0 élève(s) enregistré(s)';
+                return;
+            }
+            const sortedStudents = [...appState.students].sort((a, b) => a.name.localeCompare(b.name));
+            countEl.textContent = `${sortedStudents.length} élève(s) enregistré(s)`;
+            listEl.innerHTML = sortedStudents.map(student => `
+                <div class="student-item" data-id="${student.id}">
+                    <div class="student-info">
+                        <div class="student-name">${escapeHtml(student.name)}</div>
+                        ${student.className ? `<div class="student-class">${escapeHtml(student.className)}</div>` : ''}
+                    </div>
+                    <div class="student-actions">
+                        <button class="student-btn student-btn-edit" onclick="editStudent('${student.id}')">✏️</button>
+                        <button class="student-btn student-btn-delete" onclick="deleteStudent('${student.id}')">🗑️</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        function saveStudent() {
+            const nameInput = document.getElementById('studentNameInput');
+            const classInput = document.getElementById('studentClassInput');
+            const editingId = document.getElementById('editingStudentId').value;
+            const name = nameInput.value.trim();
+            const className = classInput.value.trim();
+            if (!name) { showToast('Veuillez entrer un nom', 'error'); return; }
+            if (editingId) {
+                const index = appState.students.findIndex(s => s.id === editingId);
+                if (index !== -1) { appState.students[index].name = name; appState.students[index].className = className; showToast('Élève modifié', 'success'); }
+                cancelEditStudent();
+            } else {
+                appState.students.push({ id: generateStudentId(), name: name, className: className });
+                showToast('Élève ajouté', 'success');
+            }
+            nameInput.value = ''; classInput.value = '';
+            saveState(); renderStudentList(); updateStudentSelects();
+        }
+        function editStudent(id) {
+            const student = appState.students.find(s => s.id === id);
+            if (!student) return;
+            document.getElementById('studentNameInput').value = student.name;
+            document.getElementById('studentClassInput').value = student.className || '';
+            document.getElementById('editingStudentId').value = id;
+            document.getElementById('formTitle').textContent = 'Modifier l\'élève';
+            document.getElementById('saveStudentBtnText').textContent = 'Modifier';
+            document.getElementById('cancelEditBtn').style.display = 'block';
+            document.getElementById('studentNameInput').focus();
+        }
+        function cancelEditStudent() {
+            document.getElementById('studentNameInput').value = '';
+            document.getElementById('studentClassInput').value = '';
+            document.getElementById('editingStudentId').value = '';
+            document.getElementById('formTitle').textContent = 'Ajouter un élève';
+            document.getElementById('saveStudentBtnText').textContent = 'Ajouter';
+            document.getElementById('cancelEditBtn').style.display = 'none';
+        }
+        function deleteStudent(id) {
+            if (!confirm('Supprimer cet élève ?')) return;
+            appState.students = appState.students.filter(s => s.id !== id);
+            saveState(); renderStudentList(); updateStudentSelects(); showToast('Élève supprimé', 'success');
+        }
+        function deleteAllStudents() {
+            if (!confirm('Supprimer tous les élèves ?')) return;
+            appState.students = []; saveState(); renderStudentList(); updateStudentSelects(); showToast('Tous les élèves supprimés', 'success');
+        }
+        function updateStudentSelects() {
+            const select1 = document.getElementById('player1Select');
+            const select2 = document.getElementById('player2Select');
+            if (!select1 || !select2) return;
+            const sortedStudents = [...(appState.students || [])].sort((a, b) => a.name.localeCompare(b.name));
+            const optionsHtml = '<option value="">-- Saisie manuelle --</option>' + sortedStudents.map(s => `<option value="${s.id}">${escapeHtml(s.name)}${s.className ? ` (${escapeHtml(s.className)})` : ''}</option>`).join('');
+            select1.innerHTML = optionsHtml; select2.innerHTML = optionsHtml;
+        }
+        function onPlayerSelectChange(playerKey) {
+            const selectId = playerKey === 'player1' ? 'player1Select' : 'player2Select';
+            const inputId = playerKey === 'player1' ? 'player1NameInput' : 'player2NameInput';
+            const select = document.getElementById(selectId);
+            const input = document.getElementById(inputId);
+            const selectedId = select.value;
+            if (selectedId) { const student = appState.students.find(s => s.id === selectedId); if (student) input.value = student.name; }
+        }
+        function downloadStudentTemplate() {
+            const csvContent = '\ufeffNom,Classe\nDupont Marie,3A\nMartin Lucas,3B\nBernard Emma,3A';
+            handleCSVExport(csvContent, 'modele_eleves.csv'); showToast('Modèle téléchargé', 'success');
+        }
+        function exportStudentsCsv() {
+            if (!appState.students || appState.students.length === 0) { showToast('Aucun élève à exporter', 'error'); return; }
+            const header = 'Nom,Classe';
+            const rows = appState.students.map(s => `"${(s.name || '').replace(/"/g, '""')}","${(s.className || '').replace(/"/g, '""')}"`);
+            handleCSVExport('\ufeff' + header + '\n' + rows.join('\n'), `eleves_${formatDateYYYYMMDD(new Date()).replace(/\//g, '-')}.csv`);
+            showToast('Liste exportée', 'success');
+        }
+        function importStudentsCsv(event) {
+            const file = event.target.files[0]; if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const lines = e.target.result.split(/\r?\n/).filter(line => line.trim());
+                    if (lines.length < 2) { showToast('Fichier vide ou invalide', 'error'); return; }
+                    let importedCount = 0, skippedCount = 0;
+                    lines.slice(1).forEach(line => {
+                        let parts = [], inQuote = false, current = '';
+                        for (let i = 0; i < line.length; i++) {
+                            const char = line[i];
+                            if (char === '"') inQuote = !inQuote;
+                            else if (char === ',' && !inQuote) { parts.push(current.trim()); current = ''; }
+                            else current += char;
+                        }
+                        parts.push(current.trim());
+                        const name = (parts[0] || '').replace(/^"|"$/g, '').replace(/""/g, '"').trim();
+                        const className = (parts[1] || '').replace(/^"|"$/g, '').replace(/""/g, '"').trim();
+                        if (name) {
+                            const exists = appState.students.some(s => s.name.toLowerCase() === name.toLowerCase() && (s.className || '').toLowerCase() === className.toLowerCase());
+                            if (!exists) { appState.students.push({ id: generateStudentId(), name: name, className: className }); importedCount++; }
+                            else skippedCount++;
+                        }
+                    });
+                    saveState(); renderStudentList(); updateStudentSelects();
+                    showToast(`${importedCount} élève(s) importé(s)${skippedCount > 0 ? `, ${skippedCount} doublon(s) ignoré(s)` : ''}`, 'success');
+                } catch (err) { console.error('Erreur import CSV:', err); showToast('Erreur lors de l\'import', 'error'); }
+            };
+            reader.readAsText(file, 'UTF-8'); event.target.value = '';
+        }
+
+        function generateFlatCsvContent() {
+            const zones = ['fond', 'gauche', 'droite', 'devant'];
+            const header = ['Nom', 'Date', 'Heure', 'Adversaire', 'Points', 'Reussites', 'Echecs', 'Tentatives', 'TauxReussite', 'Points_Fond', 'Reussites_Fond', 'Echecs_Fond', 'Tentatives_Fond', 'TauxReussite_Fond', 'Points_Gauche', 'Reussites_Gauche', 'Echecs_Gauche', 'Tentatives_Gauche', 'TauxReussite_Gauche', 'Points_Droite', 'Reussites_Droite', 'Echecs_Droite', 'Tentatives_Droite', 'TauxReussite_Droite', 'Points_Devant', 'Reussites_Devant', 'Echecs_Devant', 'Tentatives_Devant', 'TauxReussite_Devant', 'Points_Autre'];
+            let csvLignes = [header.join(',')];
+            const dateObj = new Date(); const date = formatDateYYYYMMDD(dateObj); const heure = formatHour(dateObj);
+            const playersToExport = appState.gameMode === 'solo' ? ['player1'] : ['player1', 'player2'];
+            playersToExport.forEach(playerKey => {
+                const playerState = appState.players[playerKey];
+                const opponentKey = playerKey === 'player1' ? 'player2' : 'player1';
+                const nom = playerState.name || '';
+                const adversaire = appState.gameMode === 'solo' ? '-' : (appState.players[opponentKey].name || '');
+                let totalReussites = 0, totalEchecs = 0;
+                zones.forEach(z => { totalReussites += playerState.clicks?.[z] || 0; totalEchecs += playerState.failures?.[z] || 0; });
+                const totalTentatives = totalReussites + totalEchecs;
+                const tauxReussite = totalTentatives ? Math.round(100 * totalReussites / totalTentatives) : 0;
+                const zoneStats = zones.map(z => {
+                    const pts = playerState.scores?.[z] || 0; const reussites = playerState.clicks?.[z] || 0; const echecs = playerState.failures?.[z] || 0;
+                    const tentatives = reussites + echecs; const taux = tentatives ? Math.round(100 * reussites / tentatives) : 0;
+                    return [pts, reussites, echecs, tentatives, `${taux}%`];
+                }).flat();
+                const pointsAutre = playerState.scores?.autre || 0;
+                const totalPoints = zones.reduce((sum, z) => sum + (playerState.scores?.[z] || 0), 0) + pointsAutre;
+                csvLignes.push([nom, date, heure, adversaire, totalPoints, totalReussites, totalEchecs, totalTentatives, `${tauxReussite}%`, ...zoneStats, pointsAutre].join(','));
+            });
+            return '\ufeff' + csvLignes.join('\n');
+        }
+        function downloadCurrentStateAsCsv() { handleCSVExport(generateFlatCsvContent(), `analyse_badminton_${formatDateYYYYMMDD(new Date()).replace(/\//g, '-')}.csv`); }
+
+        document.addEventListener('DOMContentLoaded', () => { try { checkLocalStorage(); loadState(); updateUI(); updateUndoButton(); updateGameModeUI(); updateStudentSelects(); } catch (e) { console.error("Erreur au démarrage:", e); } });
+        function checkLocalStorage() { try { const testKey = '__test__'; window.localStorage.setItem(testKey, testKey); window.localStorage.removeItem(testKey); localStorageAvailable = true; } catch (e) { localStorageAvailable = false; } }
+        
+        function addPoints(zone, player) { const ps = appState.players[player]; const v = ps.pointValues[zone]; ps.scores[zone] += v; ps.clicks[zone] += 1; pushAction({ type: 'point', zone, player, value: v }); vibrate(30); updateUI(); saveState(); }
+        function removePoints(zone, player) { const ps = appState.players[player]; const v = ps.pointValues[zone]; if (ps.clicks[zone] > 0) { ps.scores[zone] -= v; ps.clicks[zone] -= 1; pushAction({ type: 'removePoint', zone, player, value: v }); vibrate(50); updateUI(); saveState(); } }
+        function addFailure(zone, player) { appState.players[player].failures[zone] += 1; pushAction({ type: 'failure', zone, player }); vibrate(100); updateUI(); saveState(); showToast(`Échec (${zone})`, 'error'); }
+        function calculateTotal(player) { return ['fond', 'gauche', 'droite', 'devant', 'autre'].reduce((sum, zone) => sum + (appState.players[player].scores[zone] || 0), 0); }
+        function calculateTotalClicks(player) { return ['fond', 'gauche', 'droite', 'devant', 'autre'].reduce((sum, zone) => sum + (appState.players[player].clicks[zone] || 0), 0); }
+        
+        function updateUI() {
+            ['player1', 'player2'].forEach(player => {
+                const ps = appState.players[player];
+                ['fond', 'gauche', 'droite', 'devant', 'autre'].forEach(zone => {
+                    const el = document.getElementById(`${player}-${zone}-value`); if (el) { const pv = ps.pointValues[zone]; el.textContent = `${pv} pt${pv > 1 ? 's' : ''}`; }
+                });
+                const total = calculateTotal(player); const totalClicks = calculateTotalClicks(player);
+                const cap = player.charAt(0).toUpperCase() + player.slice(1);
+                const svEl = document.getElementById(`score${cap}Value`); if (svEl) svEl.textContent = total;
+                const scEl = document.getElementById(`score${cap}Clicks`); if (scEl) scEl.textContent = `(${totalClicks} action${totalClicks > 1 ? 's' : ''})`;
+                const snEl = document.getElementById(`score${cap}Name`); if (snEl) snEl.textContent = escapeHtml(ps.name);
+                const hEl = document.getElementById(`${player}Header`); if (hEl) hEl.textContent = escapeHtml(ps.name);
+                const tEl = document.getElementById(`tab-${player}`); if (tEl) tEl.textContent = escapeHtml(ps.name);
+            });
+        }
+        
+        function toggleGameMode() { appState.gameMode = appState.gameMode === 'solo' ? 'duo' : 'solo'; updateGameModeUI(); saveState(); showToast(appState.gameMode === 'solo' ? 'Mode Solo' : 'Mode Duo', 'success'); }
+        function toggleGameModeFromSettings() { appState.gameMode = document.getElementById('soloModeToggle').checked ? 'solo' : 'duo'; updateGameModeUI(); saveState(); }
+        function updateGameModeUI() {
+            const body = document.body; const iconDuo = document.getElementById('iconDuo'); const iconSolo = document.getElementById('iconSolo');
+            const toggle = document.getElementById('soloModeToggle'); const p2Section = document.getElementById('player2NameSection');
+            if (appState.gameMode === 'solo') { body.classList.add('solo-mode'); if(iconDuo) iconDuo.style.display='none'; if(iconSolo) iconSolo.style.display='block'; if(toggle) toggle.checked=true; if(p2Section) p2Section.style.display='none'; }
+            else { body.classList.remove('solo-mode'); if(iconDuo) iconDuo.style.display='block'; if(iconSolo) iconSolo.style.display='none'; if(toggle) toggle.checked=false; if(p2Section) p2Section.style.display='block'; }
+        }
+        function toggleViewMode() {
+            const body = document.body; const isCurrentlySingle = body.classList.contains('single-view-mode');
+            if (isCurrentlySingle) { body.classList.remove('single-view-mode'); body.classList.add('multi-view-mode'); appState.currentView = 'multi'; document.getElementById('icon-multiview').style.display = 'flex'; document.getElementById('icon-singleview').style.display = 'none'; }
+            else { body.classList.remove('multi-view-mode'); body.classList.add('single-view-mode'); appState.currentView = 'single'; document.getElementById('icon-multiview').style.display = 'none'; document.getElementById('icon-singleview').style.display = 'flex'; switchTab(appState.activeSinglePlayer); }
+            saveState();
+        }
+        function switchTab(player) { appState.activeSinglePlayer = player; document.getElementById('tab-player1').classList.toggle('active', player === 'player1'); document.getElementById('tab-player2').classList.toggle('active', player === 'player2'); document.getElementById('console-player1').classList.toggle('active', player === 'player1'); document.getElementById('console-player2').classList.toggle('active', player === 'player2'); saveState(); }
+        
+        function openSettings() {
+            document.getElementById('player1NameInput').value = appState.players.player1.name;
+            document.getElementById('player2NameInput').value = appState.players.player2.name;
+            document.getElementById('soloModeToggle').checked = appState.gameMode === 'solo';
+            const pv = appState.players.player1.pointValues;
+            document.getElementById('pointValueFond').value = pv.fond; document.getElementById('pointValueGauche').value = pv.gauche;
+            document.getElementById('pointValueDroite').value = pv.droite; document.getElementById('pointValueDevant').value = pv.devant; document.getElementById('pointValueAutre').value = pv.autre;
+            updateStudentSelects();
+            document.getElementById('player2NameSection').style.display = appState.gameMode === 'solo' ? 'none' : 'block';
+            document.getElementById('settingsModal').classList.add('active');
+        }
+        function saveSettings() {
+            appState.players.player1.name = document.getElementById('player1NameInput').value || 'Joueur 1';
+            appState.players.player2.name = document.getElementById('player2NameInput').value || 'Joueur 2';
+            ['fond', 'gauche', 'droite', 'devant', 'autre'].forEach(zone => {
+                const val = parseInt(document.getElementById(`pointValue${zone.charAt(0).toUpperCase() + zone.slice(1)}`).value) || 1;
+                appState.players.player1.pointValues[zone] = val; appState.players.player2.pointValues[zone] = val;
+            });
+            updateUI(); saveState(); closeModal('settingsModal'); showToast('Paramètres enregistrés', 'success');
+        }
+        function resetScores() {
+            if (!confirm('Réinitialiser tous les scores ?')) return;
+            ['player1', 'player2'].forEach(player => { ['fond', 'gauche', 'droite', 'devant', 'autre'].forEach(zone => { appState.players[player].scores[zone] = 0; appState.players[player].clicks[zone] = 0; appState.players[player].failures[zone] = 0; }); });
+            actionHistory = []; updateUndoButton(); updateUI(); saveState(); showToast('Scores réinitialisés', 'success');
+        }
+        function endMatch() {
+            const p1Total = calculateTotal('player1'); const p2Total = calculateTotal('player2');
+            const p1Name = appState.players.player1.name; const p2Name = appState.players.player2.name;
+            let winnerText = appState.gameMode === 'solo' ? `Score final : ${p1Total} points` : (p1Total > p2Total ? `🏆 ${escapeHtml(p1Name)} gagne !` : (p2Total > p1Total ? `🏆 ${escapeHtml(p2Name)} gagne !` : 'Match nul !'));
+            const summaryEl = document.getElementById('matchSummary');
+            if (summaryEl) {
+                summaryEl.innerHTML = `<div class="summary-winner">${winnerText}</div><div class="summary-scores"><div class="summary-player"><div class="summary-player-name">${escapeHtml(p1Name)}</div><div class="summary-player-score">${p1Total}</div></div>${appState.gameMode !== 'solo' ? `<div class="summary-player"><div class="summary-player-name">${escapeHtml(p2Name)}</div><div class="summary-player-score">${p2Total}</div></div>` : ''}</div>`;
+            }
+            document.getElementById('endMatchModal').classList.add('active');
+        }
+        function archiveMatch() { appState.archives.push({ id: Date.now(), date: new Date().toISOString(), gameMode: appState.gameMode, players: JSON.parse(JSON.stringify(appState.players)) }); saveState(); closeModal('endMatchModal'); resetScores(); showToast('Match archivé', 'success'); }
+        function downloadMatchCSV() { downloadCurrentStateAsCsv(); closeModal('endMatchModal'); }
+        function openArchives() { renderArchiveList(); document.getElementById('archivesModal').classList.add('active'); }
+        function renderArchiveList() {
+            const listEl = document.getElementById('archiveList'); 
+            if (!listEl) return;
+            
+            // Sécurité : si les archives ne sont pas une liste valide, on initialise
+            if (!Array.isArray(appState.archives)) { appState.archives = []; }
+
+            if (appState.archives.length === 0) { 
+                listEl.innerHTML = '<div class="empty-list">Aucune archive</div>'; 
+                return; 
+            }
+
+            try {
+                listEl.innerHTML = [...appState.archives]
+                    .sort((a, b) => (b.id || 0) - (a.id || 0))
+                    .map(archive => {
+                        // Sécurité : on vérifie que l'archive contient bien les joueurs
+                        if (!archive || !archive.players || !archive.players.player1) return '';
+                        
+                        try {
+                            const date = new Date(archive.date); 
+                            const dateStr = formatDateYYYYMMDD(date) + ' ' + formatHour(date);
+                            const p1 = archive.players.player1; 
+                            const p2 = archive.players.player2 || { name: '?', scores: {} };
+                            
+                            const p1Total = ['fond', 'gauche', 'droite', 'devant', 'autre'].reduce((sum, z) => sum + (p1.scores?.[z] || 0), 0);
+                            const p2Total = ['fond', 'gauche', 'droite', 'devant', 'autre'].reduce((sum, z) => sum + (p2.scores?.[z] || 0), 0);
+                            
+                            const scoreText = archive.gameMode === 'solo' 
+                                ? `${escapeHtml(p1.name || 'J1')}: ${p1Total}` 
+                                : `${escapeHtml(p1.name || 'J1')}: ${p1Total} - ${escapeHtml(p2.name || 'J2')}: ${p2Total}`;
+                            
+                            return `<div class="archive-item">
+                                <input type="checkbox" class="archive-checkbox" data-archive-id="${archive.id}">
+                                <div class="archive-info"><div class="archive-date">${dateStr}</div><div class="archive-score">${scoreText}</div></div>
+                                <div class="archive-actions">
+                                    <button class="archive-btn archive-btn-view" onclick="viewArchive(${archive.id})" title="Visualiser">👁️</button>
+                                    <button class="archive-btn archive-btn-download" onclick="downloadArchive(${archive.id})" title="Télécharger">📥</button>
+                                    <button class="archive-btn archive-btn-share" onclick="shareArchive(${archive.id})" title="Partager">📤</button>
+                                    <button class="archive-btn archive-btn-delete" onclick="deleteArchive(${archive.id})" title="Supprimer">🗑️</button>
+                                </div>
+                            </div>`;
+                        } catch (err) {
+                            console.error("Archive corrompue ignorée", err);
+                            return '';
+                        }
+                    }).join('');
+            } catch (e) {
+                console.error("Erreur globale affichage archives", e);
+                listEl.innerHTML = '<div class="empty-list" style="color:var(--error-color)">Erreur de lecture des données.</div>';
+            }
+        }
+        
+        let currentArchiveData = null;
+        
+        function viewArchive(id) {
+            const archive = appState.archives.find(a => a.id === id);
+            if (!archive) { showToast('Archive introuvable', 'error'); return; }
+            
+            currentArchiveData = archive;
+            
+            const date = new Date(archive.date);
+            const dateStr = formatDateYYYYMMDD(date) + ' à ' + formatHour(date);
+            document.getElementById('archiveViewDate').textContent = dateStr;
+            
+            // Configurer les onglets
+            const p1 = archive.players.player1;
+            const p2 = archive.players.player2;
+            document.getElementById('archiveTabPlayer1').textContent = escapeHtml(p1?.name || 'Joueur 1');
+            document.getElementById('archiveTabPlayer2').textContent = escapeHtml(p2?.name || 'Joueur 2');
+            document.getElementById('archiveTabPlayer1').classList.add('active');
+            document.getElementById('archiveTabPlayer2').classList.remove('active');
+            document.getElementById('archiveTabPlayer2').style.display = archive.gameMode === 'solo' ? 'none' : 'block';
+            
+            renderArchiveAnalysisContent('player1');
+            document.getElementById('archiveViewModal').classList.add('active');
+        }
+        
+        function switchArchiveTab(player) {
+            document.getElementById('archiveTabPlayer1').classList.toggle('active', player === 'player1');
+            document.getElementById('archiveTabPlayer2').classList.toggle('active', player === 'player2');
+            renderArchiveAnalysisContent(player);
+        }
+        
+        function renderArchiveAnalysisContent(player) {
+            if (!currentArchiveData) return;
+            
+            const zones = ['fond', 'gauche', 'droite', 'devant', 'autre'];
+            const labels = { fond: 'Fond', gauche: 'Gauche', droite: 'Droite', devant: 'Devant', autre: 'Autre' };
+            const ps = currentArchiveData.players[player];
+            if (!ps) return;
+            
+            // Calculer le total des points
+            const totalPoints = zones.reduce((sum, z) => sum + (ps.scores?.[z] || 0), 0);
+
+            // Répartition des points marqués
+            let repartitionRows = '';
+            zones.forEach(z => {
+                const points = ps.scores?.[z] || 0;
+                const clicks = ps.clicks?.[z] || 0;
+                const pct = totalPoints ? Math.round(100 * points / totalPoints) : 0;
+                const zeroClass = (pct === 0 && points > 0) ? ' zero-with-data' : '';
+                repartitionRows += `<tr${points === 0 ? ' class="analysis-row-disabled"' : ''}>
+                    <td><span class="analysis-dot ${z}"></span>${labels[z]}</td>
+                    <td><div class="analysis-progress"><div class="analysis-bar ${z}${zeroClass}" style="width:${pct}%;height:100%"></div></div></td>
+                    <td style="text-align:right;"><b>${points} pts</b> (×${clicks}) &nbsp; ${pct}%</td>
+                </tr>`;
+            });
+            if (totalPoints === 0) {
+                repartitionRows = '<tr><td colspan="3" style="text-align:center;color:var(--text-secondary-color);">Aucun point marqué.</td></tr>';
+            }
+            
+            // Taux de réussite par zone (hors "Autre")
+            const successZones = ['fond', 'gauche', 'droite', 'devant'];
+            let successRows = '', hasAttempts = false;
+            successZones.forEach(z => {
+                const reussites = ps.clicks?.[z] || 0;
+                const echecs = ps.failures?.[z] || 0;
+                const tentatives = reussites + echecs;
+                if (tentatives > 0) hasAttempts = true;
+                const taux = tentatives ? Math.round(100 * reussites / tentatives) : 0;
+                const zeroClass = (taux === 0 && tentatives > 0) ? ' zero-with-data' : '';
+                successRows += `<tr class="${tentatives === 0 ? 'analysis-row-disabled' : ''}">
+                    <td><span class="analysis-dot ${z}"></span>${labels[z]}</td>
+                    <td><div class="analysis-progress"><div class="analysis-bar ${z}${zeroClass}" style="width:${taux}%;height:100%"></div></div></td>
+                    <td style="text-align:right;">${reussites} / ${tentatives} (${taux}%)</td>
+                </tr>`;
+            });
+            if (!hasAttempts) {
+                successRows = '<tr><td colspan="3" style="text-align:center;color:var(--text-secondary-color);">Aucune tentative enregistrée.</td></tr>';
+            }
+            
+            // Statistiques globales
+            let globalTentatives = 0, globalPointsReussis = 0, globalEchecs = 0;
+            successZones.forEach(z => {
+                globalTentatives += (ps.clicks?.[z] || 0) + (ps.failures?.[z] || 0);
+                globalPointsReussis += ps.scores?.[z] || 0;
+                globalEchecs += ps.failures?.[z] || 0;
+            });
+            const globalClicsReussis = successZones.reduce((sum, z) => sum + (ps.clicks?.[z] || 0), 0);
+            const tauxGlobal = globalTentatives ? Math.round(100 * globalClicsReussis / globalTentatives) : 0;
+            
+            const el = document.getElementById('archiveViewContent');
+            if (el) {
+                el.innerHTML = `
+                    <div class="analysis-section-title">Répartition des Points Marqués</div>
+                    <table class="analysis-table">${repartitionRows}</table>
+                    <div class="analysis-section-title">Taux de Réussite par Zone (hors "Autre")</div>
+                    <table class="analysis-table">${successRows}</table>
+                    <div class="analysis-section-title">Statistiques Globales</div>
+                    <div class="analysis-globals">
+                        <div class="analysis-global-card">
+                            <div class="analysis-global-value">${totalPoints}</div>
+                            <div class="analysis-global-label">Points Totaux</div>
+                        </div>
+                        <div class="analysis-global-card">
+                            <div class="analysis-global-value">${globalClicsReussis}</div>
+                            <div class="analysis-global-label">Réussites</div>
+                        </div>
+                        <div class="analysis-global-card">
+                            <div class="analysis-global-value">${globalEchecs}</div>
+                            <div class="analysis-global-label">Échecs</div>
+                        </div>
+                        <div class="analysis-global-card">
+                            <div class="analysis-global-value">${tauxGlobal}%</div>
+                            <div class="analysis-global-label">Taux de Réussite</div>
+                        </div>
+                    </div>`;
+            }
+        }
+        
+        function downloadArchive(id) {
+            const archive = appState.archives.find(a => a.id === id);
+            if (!archive) { showToast('Archive introuvable', 'error'); return; }
+            
+            // Confirmation avant téléchargement
+            const date = new Date(archive.date);
+            const dateStr = formatDateYYYYMMDD(date) + ' ' + formatHour(date);
+            if (!confirm(`Télécharger le CSV du match du ${dateStr} ?`)) return;
+            
+            const csvContent = generateArchiveCsv(archive);
+            const filename = `match_${formatDateYYYYMMDD(date).replace(/\//g, '-')}_${formatHour(date).replace(':', 'h')}.csv`;
+            
+            // Téléchargement direct sans menu de partage
+            try {
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                downloadBlob(blob, filename);
+                showToast('Archive téléchargée', 'success');
+            } catch (e) {
+                console.error('Erreur téléchargement CSV:', e);
+                showToast('Erreur téléchargement CSV', 'error');
+            }
+        }
+        
+        function generateArchiveCsv(archive) {
+            const zones = ['fond', 'gauche', 'droite', 'devant'];
+            const header = ['Nom', 'Date', 'Heure', 'Adversaire', 'Points', 'Reussites', 'Echecs', 'Tentatives', 'TauxReussite',
+                'Points_Fond', 'Reussites_Fond', 'Echecs_Fond', 'Tentatives_Fond', 'TauxReussite_Fond',
+                'Points_Gauche', 'Reussites_Gauche', 'Echecs_Gauche', 'Tentatives_Gauche', 'TauxReussite_Gauche',
+                'Points_Droite', 'Reussites_Droite', 'Echecs_Droite', 'Tentatives_Droite', 'TauxReussite_Droite',
+                'Points_Devant', 'Reussites_Devant', 'Echecs_Devant', 'Tentatives_Devant', 'TauxReussite_Devant',
+                'Points_Autre'];
+            let csvLignes = [header.join(',')];
+            
+            const dateObj = new Date(archive.date);
+            const date = formatDateYYYYMMDD(dateObj);
+            const heure = formatHour(dateObj);
+            
+            const playersToExport = archive.gameMode === 'solo' ? ['player1'] : ['player1', 'player2'];
+            
+            playersToExport.forEach(playerKey => {
+                const playerState = archive.players[playerKey];
+                if (!playerState) return;
+                const opponentKey = playerKey === 'player1' ? 'player2' : 'player1';
+                const nom = playerState.name || '';
+                const adversaire = archive.gameMode === 'solo' ? '-' : (archive.players[opponentKey]?.name || '');
+
+                let totalReussites = 0, totalEchecs = 0;
+                zones.forEach(z => { totalReussites += playerState.clicks?.[z] || 0; totalEchecs += playerState.failures?.[z] || 0; });
+                const totalTentatives = totalReussites + totalEchecs;
+                const tauxReussite = totalTentatives ? Math.round(100 * totalReussites / totalTentatives) : 0;
+
+                const zoneStats = zones.map(z => {
+                    const pts = playerState.scores?.[z] || 0;
+                    const reussites = playerState.clicks?.[z] || 0;
+                    const echecs = playerState.failures?.[z] || 0;
+                    const tentatives = reussites + echecs;
+                    const taux = tentatives ? Math.round(100 * reussites / tentatives) : 0;
+                    return [pts, reussites, echecs, tentatives, `${taux}%`];
+                }).flat();
+
+                const pointsAutre = playerState.scores?.autre || 0;
+                const totalPoints = zones.reduce((sum, z) => sum + (playerState.scores?.[z] || 0), 0) + pointsAutre;
+                csvLignes.push([nom, date, heure, adversaire, totalPoints, totalReussites, totalEchecs, totalTentatives, `${tauxReussite}%`, ...zoneStats, pointsAutre].join(','));
+            });
+            
+            return '\ufeff' + csvLignes.join('\n');
+        }
+        
+        function shareArchive(id) {
+            const archive = appState.archives.find(a => a.id === id);
+            if (!archive) { showToast('Archive introuvable', 'error'); return; }
+            
+            // Génère le CSV complet (même logique que downloadArchive)
+            const csvContent = generateArchiveCsv(archive);
+            const date = new Date(archive.date);
+            const filename = `match_${formatDateYYYYMMDD(date).replace(/\//g, '-')}_${formatHour(date).replace(':', 'h')}.csv`;
+            
+            // Partage le fichier CSV complet
+            handleCSVExport(csvContent, filename);
+            showToast('CSV partagé', 'success');
+        }
+        
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('Copié dans le presse-papier', 'success');
+            }).catch(() => {
+                showToast('Impossible de copier', 'error');
+            });
+        }
+        function deleteArchive(id) { if (!confirm('Supprimer ?')) return; appState.archives = appState.archives.filter(a => a.id !== id); saveState(); renderArchiveList(); showToast('Archive supprimée', 'success'); }
+        function deleteAllArchives() { if (!confirm('Supprimer toutes les archives ?')) return; appState.archives = []; saveState(); renderArchiveList(); showToast('Archives supprimées', 'success'); }
+
+        function toggleSelectAll() {
+            const selectAll = document.getElementById('selectAllArchives');
+            const checkboxes = document.querySelectorAll('.archive-checkbox');
+            checkboxes.forEach(cb => cb.checked = selectAll.checked);
+        }
+
+        function getSelectedArchiveIds() {
+            const checkboxes = document.querySelectorAll('.archive-checkbox:checked');
+            return Array.from(checkboxes).map(cb => parseInt(cb.dataset.archiveId));
+        }
+
+        function downloadSelectedArchives() {
+            const selectedIds = getSelectedArchiveIds();
+            if (selectedIds.length === 0) {
+                showToast('Aucune archive sélectionnée', 'error');
+                return;
+            }
+            const selectedArchives = appState.archives.filter(a => selectedIds.includes(a.id));
+            downloadMultipleArchives(selectedArchives, 'matchs_selection');
+        }
+
+        function downloadAllArchives() {
+            if (appState.archives.length === 0) {
+                showToast('Aucune archive disponible', 'error');
+                return;
+            }
+            downloadMultipleArchives(appState.archives, 'matchs_compiles');
+        }
+
+        function shareSelectedArchives() {
+            const selectedIds = getSelectedArchiveIds();
+            if (selectedIds.length === 0) {
+                showToast('Aucune archive sélectionnée', 'error');
+                return;
+            }
+            const selectedArchives = appState.archives.filter(a => selectedIds.includes(a.id));
+            shareMultipleArchives(selectedArchives, 'matchs_selection');
+        }
+
+        function shareAllArchives() {
+            if (appState.archives.length === 0) {
+                showToast('Aucune archive disponible', 'error');
+                return;
+            }
+            shareMultipleArchives(appState.archives, 'matchs_compiles');
+        }
+
+        function shareMultipleArchives(archives, filenamePrefix) {
+            const zones = ['fond', 'gauche', 'droite', 'devant'];
+            const header = ['Nom', 'Date', 'Heure', 'Adversaire', 'Points', 'Reussites', 'Echecs', 'Tentatives', 'TauxReussite',
+                'Points_Fond', 'Reussites_Fond', 'Echecs_Fond', 'Tentatives_Fond', 'TauxReussite_Fond',
+                'Points_Gauche', 'Reussites_Gauche', 'Echecs_Gauche', 'Tentatives_Gauche', 'TauxReussite_Gauche',
+                'Points_Droite', 'Reussites_Droite', 'Echecs_Droite', 'Tentatives_Droite', 'TauxReussite_Droite',
+                'Points_Devant', 'Reussites_Devant', 'Echecs_Devant', 'Tentatives_Devant', 'TauxReussite_Devant',
+                'Points_Autre'];
+            let csvLignes = [header.join(',')];
+
+            archives.forEach(archive => {
+                const dateObj = new Date(archive.date);
+                const date = formatDateYYYYMMDD(dateObj);
+                const heure = formatHour(dateObj);
+                const playersToExport = archive.gameMode === 'solo' ? ['player1'] : ['player1', 'player2'];
+
+                playersToExport.forEach(playerKey => {
+                    const playerState = archive.players[playerKey];
+                    if (!playerState) return;
+                    const opponentKey = playerKey === 'player1' ? 'player2' : 'player1';
+                    const nom = playerState.name || '';
+                    const adversaire = archive.gameMode === 'solo' ? '-' : (archive.players[opponentKey]?.name || '');
+
+                    let totalReussites = 0, totalEchecs = 0;
+                    zones.forEach(z => { totalReussites += playerState.clicks?.[z] || 0; totalEchecs += playerState.failures?.[z] || 0; });
+                    const totalTentatives = totalReussites + totalEchecs;
+                    const tauxReussite = totalTentatives ? Math.round(100 * totalReussites / totalTentatives) : 0;
+
+                    const zoneStats = zones.map(z => {
+                        const pts = playerState.scores?.[z] || 0;
+                        const reussites = playerState.clicks?.[z] || 0;
+                        const echecs = playerState.failures?.[z] || 0;
+                        const tentatives = reussites + echecs;
+                        const taux = tentatives ? Math.round(100 * reussites / tentatives) : 0;
+                        return [pts, reussites, echecs, tentatives, `${taux}%`];
+                    }).flat();
+
+                    const pointsAutre = playerState.scores?.autre || 0;
+                    const totalPoints = zones.reduce((sum, z) => sum + (playerState.scores?.[z] || 0), 0) + pointsAutre;
+                    csvLignes.push([nom, date, heure, adversaire, totalPoints, totalReussites, totalEchecs, totalTentatives, `${tauxReussite}%`, ...zoneStats, pointsAutre].join(','));
+                });
+            });
+
+            const csvContent = '\ufeff' + csvLignes.join('\n');
+            const filename = `${filenamePrefix}_${formatDateYYYYMMDD(new Date()).replace(/\//g, '-')}.csv`;
+
+            try {
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const file = new File([blob], filename, { type: 'text/csv' });
+
+                if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                    navigator.share({
+                        files: [file],
+                        title: `${archives.length} match(s) badminton`,
+                        text: `Statistiques de ${archives.length} match(s)`
+                    }).then(() => {
+                        showToast(`${archives.length} archive(s) partagée(s)`, 'success');
+                    }).catch(() => {
+                        downloadBlob(blob, filename);
+                        showToast('Partage annulé, téléchargement...', 'warning');
+                    });
+                } else {
+                    downloadBlob(blob, filename);
+                    showToast('Partage non supporté, téléchargement...', 'warning');
+                }
+            } catch (e) {
+                console.error('Erreur partage:', e);
+                showToast('Erreur partage', 'error');
+            }
+        }
+
+        function downloadMultipleArchives(archives, filenamePrefix) {
+            const zones = ['fond', 'gauche', 'droite', 'devant'];
+            const header = ['Nom', 'Date', 'Heure', 'Adversaire', 'Points', 'Reussites', 'Echecs', 'Tentatives', 'TauxReussite',
+                'Points_Fond', 'Reussites_Fond', 'Echecs_Fond', 'Tentatives_Fond', 'TauxReussite_Fond',
+                'Points_Gauche', 'Reussites_Gauche', 'Echecs_Gauche', 'Tentatives_Gauche', 'TauxReussite_Gauche',
+                'Points_Droite', 'Reussites_Droite', 'Echecs_Droite', 'Tentatives_Droite', 'TauxReussite_Droite',
+                'Points_Devant', 'Reussites_Devant', 'Echecs_Devant', 'Tentatives_Devant', 'TauxReussite_Devant',
+                'Points_Autre'];
+            let csvLignes = [header.join(',')];
+
+            archives.forEach(archive => {
+                const dateObj = new Date(archive.date);
+                const date = formatDateYYYYMMDD(dateObj);
+                const heure = formatHour(dateObj);
+
+                const playersToExport = archive.gameMode === 'solo' ? ['player1'] : ['player1', 'player2'];
+
+                playersToExport.forEach(playerKey => {
+                    const playerState = archive.players[playerKey];
+                    if (!playerState) return;
+                    const opponentKey = playerKey === 'player1' ? 'player2' : 'player1';
+                    const nom = playerState.name || '';
+                    const adversaire = archive.gameMode === 'solo' ? '-' : (archive.players[opponentKey]?.name || '');
+
+                    let totalReussites = 0, totalEchecs = 0;
+                    zones.forEach(z => { totalReussites += playerState.clicks?.[z] || 0; totalEchecs += playerState.failures?.[z] || 0; });
+                    const totalTentatives = totalReussites + totalEchecs;
+                    const tauxReussite = totalTentatives ? Math.round(100 * totalReussites / totalTentatives) : 0;
+
+                    const zoneStats = zones.map(z => {
+                        const pts = playerState.scores?.[z] || 0;
+                        const reussites = playerState.clicks?.[z] || 0;
+                        const echecs = playerState.failures?.[z] || 0;
+                        const tentatives = reussites + echecs;
+                        const taux = tentatives ? Math.round(100 * reussites / tentatives) : 0;
+                        return [pts, reussites, echecs, tentatives, `${taux}%`];
+                    }).flat();
+
+                    const pointsAutre = playerState.scores?.autre || 0;
+                    const totalPoints = zones.reduce((sum, z) => sum + (playerState.scores?.[z] || 0), 0) + pointsAutre;
+                    csvLignes.push([nom, date, heure, adversaire, totalPoints, totalReussites, totalEchecs, totalTentatives, `${tauxReussite}%`, ...zoneStats, pointsAutre].join(','));
+                });
+            });
+
+            const csvContent = '\ufeff' + csvLignes.join('\n');
+            const filename = `${filenamePrefix}_${formatDateYYYYMMDD(new Date()).replace(/\//g, '-')}.csv`;
+
+            try {
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                downloadBlob(blob, filename);
+                showToast(`${archives.length} archive(s) téléchargée(s)`, 'success');
+            } catch (e) {
+                console.error('Erreur téléchargement CSV:', e);
+                showToast('Erreur téléchargement CSV', 'error');
+            }
+        }
+
+        function openDetailedScore() {
+            ['player1', 'player2'].forEach(player => {
+                const ps = appState.players[player]; let total = 0;
+                ['fond', 'gauche', 'droite', 'devant', 'autre'].forEach(zone => {
+                    const points = ps.scores[zone] || 0; const clicks = ps.clicks[zone] || 0; const failures = ps.failures[zone] || 0; total += points;
+                    const pEl = document.getElementById(`detail-${player}-${zone}-points`); if (pEl) pEl.textContent = points;
+                    const cEl = document.getElementById(`detail-${player}-${zone}-clicks`); if (cEl) cEl.innerHTML = failures > 0 ? `(${clicks} réus. / <span class="stat-failures">${failures} éch.</span>)` : `(${clicks} actions)`;
+                });
+                const tEl = document.getElementById(`detail-${player}-total`); if (tEl) tEl.textContent = total;
+                const hEl = document.getElementById(`detail-${player}-header`); if (hEl) hEl.textContent = escapeHtml(ps.name);
+            });
+            document.getElementById('detailModal').classList.add('active');
+        }
+        function showToast(message, type = 'success') { const toast = document.getElementById('toast'); if (!toast) return; toast.textContent = message; toast.className = 'toast show ' + type; setTimeout(() => { toast.classList.remove('show'); }, 2500); }
+        function handleCSVExport(csvContent, filename) {
+            try {
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                if (navigator.share && /mobile|android|iphone|ipad/i.test(navigator.userAgent)) { navigator.share({ files: [new File([blob], filename, { type: 'text/csv' })], title: filename }).catch(() => downloadBlob(blob, filename)); }
+                else downloadBlob(blob, filename);
+            } catch (e) { console.error('Erreur export CSV:', e); showToast('Erreur export CSV', 'error'); }
+        }
+        function downloadBlob(blob, filename) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); }
+        function purgeAllData() {
+            if (!confirm('Supprimer TOUTES les données ?')) return;
+            storage.removeItem('badmintonAppState');
+            appState = { players: { player1: { name: 'Joueur 1', scores: { fond: 0, gauche: 0, droite: 0, devant: 0, autre: 0 }, clicks: { fond: 0, gauche: 0, droite: 0, devant: 0, autre: 0 }, failures: { fond: 0, gauche: 0, droite: 0, devant: 0, autre: 0 }, pointValues: { fond: 1, gauche: 1, droite: 1, devant: 1, autre: 1 } }, player2: { name: 'Joueur 2', scores: { fond: 0, gauche: 0, droite: 0, devant: 0, autre: 0 }, clicks: { fond: 0, gauche: 0, droite: 0, devant: 0, autre: 0 }, failures: { fond: 0, gauche: 0, droite: 0, devant: 0, autre: 0 }, pointValues: { fond: 1, gauche: 1, droite: 1, devant: 1, autre: 1 } } }, archives: [], students: [], currentView: 'multi', activeSinglePlayer: 'player1', gameMode: 'duo' };
+            actionHistory = []; updateUI(); updateUndoButton(); updateGameModeUI(); updateStudentSelects(); closeModal('settingsModal'); showToast('Données supprimées', 'success');
+        }
+        function closeModal(modalId) { document.getElementById(modalId).classList.remove('active'); }
+        function openAnalysisModal() {
+            document.getElementById('analysisTabPlayer1').textContent = escapeHtml(appState.players.player1.name);
+            document.getElementById('analysisTabPlayer2').textContent = escapeHtml(appState.players.player2.name);
+            document.getElementById('analysisTabPlayer1').classList.add('active'); document.getElementById('analysisTabPlayer2').classList.remove('active');
+            document.getElementById('analysisTabPlayer2').style.display = appState.gameMode === 'solo' ? 'none' : 'block';
+            renderAnalysisContent('player1'); document.getElementById('analysisModal').classList.add('active');
+        }
+        function switchAnalysisTab(player) { document.getElementById('analysisTabPlayer1').classList.toggle('active', player === 'player1'); document.getElementById('analysisTabPlayer2').classList.toggle('active', player === 'player2'); renderAnalysisContent(player); }
+        function renderAnalysisContent(player) {
+            const zones = ['fond', 'gauche', 'droite', 'devant', 'autre'];
+            const labels = { fond: 'Fond', gauche: 'Gauche', droite: 'Droite', devant: 'Devant', autre: 'Autre' };
+            const ps = appState.players[player]; if (!ps) return;
+            const totalPoints = zones.reduce((sum, z) => sum + ps.scores[z], 0);
+            let repartitionRows = '';
+            zones.forEach(z => { const points = ps.scores[z]; const clicks = ps.clicks[z]; const pct = totalPoints ? Math.round(100 * points / totalPoints) : 0; const zeroClass = (pct === 0 && points > 0) ? ' zero-with-data' : ''; repartitionRows += `<tr${points === 0 ? ' class="analysis-row-disabled"' : ''}><td><span class="analysis-dot ${z}"></span>${labels[z]}</td><td><div class="analysis-progress"><div class="analysis-bar ${z}${zeroClass}" style="width:${pct}%;height:100%"></div></div></td><td style="text-align:right;"><b>${points} pts</b> (×${clicks}) &nbsp; ${pct}%</td></tr>`; });
+            if (totalPoints === 0) repartitionRows = '<tr><td colspan="3" style="text-align:center;color:var(--text-secondary-color);">Aucun point marqué.</td></tr>';
+            const successZones = ['fond', 'gauche', 'droite', 'devant'];
+            let successRows = '', hasAttempts = false;
+            successZones.forEach(z => { const tentatives = ps.clicks[z] + ps.failures[z]; if (tentatives > 0) hasAttempts = true; const taux = tentatives ? Math.round(100 * ps.clicks[z] / tentatives) : 0; const zeroClass = (taux === 0 && tentatives > 0) ? ' zero-with-data' : ''; successRows += `<tr class="${tentatives === 0 ? 'analysis-row-disabled' : ''}"><td><span class="analysis-dot ${z}"></span>${labels[z]}</td><td><div class="analysis-progress"><div class="analysis-bar ${z}${zeroClass}" style="width:${taux}%;height:100%"></div></div></td><td style="text-align:right;">${ps.clicks[z]} / ${tentatives} (${taux}%)</td></tr>`; });
+            if (!hasAttempts) successRows = '<tr><td colspan="3" style="text-align:center;color:var(--text-secondary-color);">Aucune tentative enregistrée.</td></tr>';
+            let globalTentatives = 0, globalPointsReussis = 0, globalEchecs = 0;
+            successZones.forEach(z => { globalTentatives += ps.clicks[z] + ps.failures[z]; globalPointsReussis += ps.scores[z]; globalEchecs += ps.failures[z]; });
+            const globalClicsReussis = successZones.reduce((sum, z) => sum + ps.clicks[z], 0);
+            const tauxGlobal = globalTentatives ? Math.round(100 * globalClicsReussis / globalTentatives) : 0;
+            const el = document.getElementById('analysisContent');
+            if (el) el.innerHTML = `<div class="analysis-section-title">Répartition des Points Marqués</div><table class="analysis-table">${repartitionRows}</table><div class="analysis-section-title">Taux de Réussite par Zone (hors "Autre")</div><table class="analysis-table">${successRows}</table><div class="analysis-section-title">Statistiques Globales</div><div class="analysis-globals"><div class="analysis-global-card"><div class="analysis-global-value">${totalPoints}</div><div class="analysis-global-label">Points Totaux</div></div><div class="analysis-global-card"><div class="analysis-global-value">${globalClicsReussis}</div><div class="analysis-global-label">Réussites</div></div><div class="analysis-global-card"><div class="analysis-global-value">${globalEchecs}</div><div class="analysis-global-label">Échecs</div></div><div class="analysis-global-card"><div class="analysis-global-value">${tauxGlobal}%</div><div class="analysis-global-label">Taux de Réussite</div></div></div>`;
+        }
+        const storage = { getItem: function(key) { if (!localStorageAvailable || !window.localStorage) return null; try { return window.localStorage.getItem(key); } catch(e) { return null; } }, setItem: function(key, value) { if (!localStorageAvailable || !window.localStorage) return false; try { window.localStorage.setItem(key, value); return true; } catch(e) { return false; } }, removeItem: function(key) { if (!localStorageAvailable || !window.localStorage) return false; try { window.localStorage.removeItem(key); return true; } catch(e) { return false; } } };
+        function saveState() { try { storage.setItem('badmintonAppState', JSON.stringify(appState)); } catch (e) { console.error('Erreur sauvegarde:', e); } }
+        function loadState() {
+            try {
+                const saved = storage.getItem('badmintonAppState');
+                if (saved) { const loadedState = JSON.parse(saved); if (loadedState && typeof loadedState === 'object') { appState = mergeDeep(appState, loadedState); ['player1', 'player2'].forEach(player => { ['fond', 'gauche', 'droite', 'devant', 'autre'].forEach(zone => { if (typeof appState.players[player].scores[zone] !== 'number' || isNaN(appState.players[player].scores[zone])) appState.players[player].scores[zone] = 0; if (typeof appState.players[player].clicks[zone] !== 'number' || isNaN(appState.players[player].clicks[zone])) appState.players[player].clicks[zone] = 0; if (typeof appState.players[player].failures[zone] !== 'number' || isNaN(appState.players[player].failures[zone])) appState.players[player].failures[zone] = 0; }); }); if (!Array.isArray(appState.students)) appState.students = []; } }
+            } catch(e) { console.error("Erreur chargement:", e); }
+        }
+        function isObject(item) { return item && typeof item === 'object' && !Array.isArray(item); }
+        function mergeDeep(target, source) { const output = { ...target }; if (isObject(target) && isObject(source)) { Object.keys(source).forEach(key => { if (isObject(source[key])) { if (!(key in target)) Object.assign(output, { [key]: source[key] }); else output[key] = mergeDeep(target[key], source[key]); } else Object.assign(output, { [key]: source[key] }); }); } return output; }
+    </script>
+</body>
+</html>
